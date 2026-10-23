@@ -454,7 +454,7 @@ const DATA_VERSIONS = {
     'throttle_raw', 'brake_raw', 'throttle_after_sensitivity', 'brake_after_sensitivity',
     'throttle_after_damping', 'brake_after_damping', 'throttle', 'brake',
     'abs_active', 'tc_active',
-    'speed_kph', 'slip_angle_deg', 'wheel_spin', 'traction', 'control', 'grip',
+    'speed_kph', 'slip_angle_deg', 'wheel_spin', 'grip', 'control', 'tire_grip',
     'lateral_offset', 'x', 'z',
     'gear', 'rpm',
   ],
@@ -647,7 +647,7 @@ Alpine.data('app', () => {
     track: '',
     selected: [],             // lap ids by lap time, fastest first: A, B, C …
     ref: null,                // id of the lap pinned as the reference; null for the fastest selected lap
-    shown: saved('shown', ['throttle', 'brake', 'traction', 'control']),   // channel charts below the delta chart, in order
+    shown: saved('shown', ['throttle', 'brake', 'grip', 'control']),   // channel charts below the delta chart, in order
     relativeDelta: false,     // the delta chart's Delta / Relative switch
     mapPinned: saved('mapPinned', true),           // false: the track map floats in the top right corner
     readoutPinned: saved('readoutPinned', true),   // false: the cursor values float left of the map

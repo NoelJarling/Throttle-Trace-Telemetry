@@ -133,8 +133,6 @@ func _close_file_if_exists() -> void:
 func _sample(car: Car) -> Array:
 	var pu := car.power_unit
 	var pos := car.model_positioner.global_position
-	# Telemetry data version 0.10, one value per name in the comments.
-	# _num rounds each value to its resolution and turns NaN/inf into null
 	return [
 		# Time into the lap, the clock the lap and sector times are taken from
 		_num(car.current_lap.time, 0.00001),  # time
@@ -152,9 +150,9 @@ func _sample(car: Car) -> Array:
 		roundi(Track.pps_to_kph(car.speed)),  # speed_kph
 		_num(rad_to_deg(car.slip_angle), 0.01),  # slip_angle_deg
 		roundi(car.wheel_spin * 100),  # wheel_spin
-		roundi(car.traction * 100),  # traction
+		roundi(car.traction * 100),  # grip
 		roundi(car.control * 100),  # control
-		_num(car.grip, 0.01),  # grip
+		_num(car.grip * 100, 0.01),  # tire_grip
 		_num(car.relative_offset, 0.01),  # lateral_offset
 		_num(pos.x, 0.00001),  # x
 		_num(pos.z, 0.00001),  # z
