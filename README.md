@@ -56,12 +56,12 @@ Throttle and brake have multiple channels. The following examples are based on t
 
 Each channel takes more configuration options from the settings menu into account.
 
-`throttle raw → throttle after sens → throttle after damping → throttle`
+`throttle raw → throttle after sensitivity → throttle after damping → throttle`
 
 | Channel                | Value                                                                                                   |
 |------------------------|---------------------------------------------------------------------------------------------------------|
 | Throttle raw           | The raw throttle value read from the input device                                                       |
-| Throttle after sens    | The throttle value after the "Throttle Sensitivity" setting is applied                                  |
+| Throttle after sensitivity | The throttle value after the "Throttle Sensitivity" setting is applied                                  |
 | Throttle after damping | The throttle value after the "Throttle Sensitivity" and "Throttle Dampening" settings are applied       |
 | Throttle               | The final throttle value used by the game. Includes sensitivity, dampening, traction control and pedal assist |
 
