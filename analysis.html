@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Throttle Trace Telemetry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700;800&family=Saira:wght@400;500&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.30/dist/uPlot.min.css">
+<style>
+  /* ---------- Tokens ---------- */
+  :root {
+    color-scheme: dark;
+    --bg: #0b0d10;
+    --panel: #14171c;
+    --raised: #1b1f26;
+    --line: #232830;
+    --line-strong: #323946;
+    --text: #e9ecf1;
+    --text-2: #a9b1bd;
+    --muted: #6c7581;
+    --accent: #ffc400;         /* signal yellow: selection and highlights */
+    --accent-ink: #14110a;
+    --best: #b26cff;           /* fastest lap / sector */
+    --faster: #3ad07a;
+    --slower: #ff5257;
+
+    --cond: "Saira Condensed", "Arial Narrow", sans-serif;
+    --sans: "Saira", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+    --cut: 14px;               /* the clipped panel corner */
+  }
+
+  * { box-sizing: border-box; }
+  [x-cloak] { display: none !important; }
+  body {
+    margin: 0; color: var(--text); font: 14px/1.45 var(--sans);
+    /* faint carbon weave */
+    background:
+      repeating-linear-gradient(45deg, #ffffff03 0 2px, transparent 2px 4px),
+      repeating-linear-gradient(-45deg, #00000040 0 2px, transparent 2px 4px),
+      var(--bg);
+    min-height: 100vh;
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex; align-items: center; gap: 16px; padding: 0 16px 0 0; height: 52px;
+    background: linear-gradient(180deg, #171a20, #111317);
+  }
+  .brand { display: flex; align-items: center; height: 100%; }
+  .brand-mark {
+    height: 100%; padding: 0 22px 0 16px; display: grid; place-items: center;
+    background: var(--accent); color: var(--accent-ink);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+    font: 800 22px/1 var(--cond); letter-spacing: -.02em;
+  }
+  .brand-name { padding-left: 10px; font: 700 18px/1 var(--cond); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+  .brand-name span { color: var(--muted); font-weight: 600; margin-left: 8px; }
+  header .spacer { flex: 1; }
+  .folder { display: flex; align-items: center; gap: 8px; color: var(--text-2); font: 500 13px var(--cond); letter-spacing: .06em; text-transform: uppercase; }
+  .header-line { height: 2px; background: var(--text); opacity: .85; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 14px; cursor: pointer;
+    background: var(--raised); color: var(--text); border: 1px solid var(--line-strong);
+    font: 600 13px var(--cond); letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  /* ---------- Layout ---------- */
+  main { padding: 16px; display: grid; gap: 14px; max-width: 1600px; margin: 0 auto; }
+  .top { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; }
+  @media (max-width: 900px) { .top { grid-template-columns: 1fr; } }
+  .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .track-name { font: 700 22px var(--cond); letter-spacing: .06em; text-transform: uppercase; }
+
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); min-width: 0;
+    clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut));
+  }
+  .panel-head {
+    display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 22px; border-bottom: 1px solid var(--line);
+    font: 700 13px var(--cond); letter-spacing: .14em; text-transform: uppercase; color: var(--text-2);
+  }
+  .panel-body { padding: 10px 14px 14px; }
+  .scroll-x { overflow-x: auto; }
+
+  /* ---------- Start screen ---------- */
+  .start { max-width: 640px; margin: 12vh auto 0; }
+  .start p { color: var(--text-2); margin: 0 0 12px; }
+  .start code { font: 12px var(--mono); color: var(--text); word-break: break-all; }
+  .start .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+  /* ---------- Tables ---------- */
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left; padding: 6px 10px; color: var(--muted); white-space: nowrap;
+    font: 600 11px var(--cond); letter-spacing: .14em; text-transform: uppercase;
+  }
+  td { padding: 0 10px; height: 36px; border-top: 1px solid var(--line); font: 14px var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  th.r, td.r { text-align: right; }
+  tbody tr:hover td { background: #ffffff05; }
+  td.driver { font: 600 15px var(--cond); letter-spacing: .04em; text-transform: uppercase; }
+  .readout td { height: 30px; font-size: 13px; }
+  .readout th:first-child, .readout td:first-child { width: 56px; }
+
+  /* the lap tag: a slanted colour block with the lap letter, like a timing-tower position.
+     Filled for the reference lap, only a coloured outline for the others */
+  .tag {
+    position: relative; isolation: isolate; display: inline-grid; place-items: center; width: 34px; height: 24px;
+    padding: 0; border: 0; color: #0b0d10; background: var(--c); font: 800 16px/1 var(--cond);
+    clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  }
+  .tag.outline { color: var(--c); }
+  .tag.outline::before {
+    content: ""; position: absolute; inset: 2px; z-index: -1; background: var(--panel);
+    clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+  }
+  button.tag { cursor: pointer; }
+  button.tag.outline:hover::before { background: var(--raised); }
+  .best { color: var(--best); font-weight: 600; }
+  .faster { color: var(--faster); }
+  .slower { color: var(--slower); }
+  /* fastest sectors get an underline as well as the colour */
+  td.sector { position: relative; }
+  td.sector.best::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 5px; height: 3px; background: var(--best); }
+  /* Remove-lap button at the end of each lap row: a circle with an × */
+  td.remove { width: 1%; padding-left: 4px; }
+  .remove-lap {
+    display: grid; place-items: center; width: 20px; height: 20px; padding: 0; cursor: pointer;
+    border: 1px solid var(--muted); border-radius: 50%; background: none; color: var(--muted);
+  }
+  .remove-lap svg { width: 8px; height: 8px; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+  .remove-lap:hover { border-color: var(--slower); color: var(--slower); }
+
+  /* ---------- Map ---------- */
+  .map { display: block; width: 100%; max-height: 320px; }
+  .map polyline { fill: none; stroke-width: 1.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  .map .faded polyline { opacity: .35; }
+  .map .zoomed polyline { stroke-width: 3; }
+  .map .start-line { stroke: var(--text); stroke-width: 2; vector-effect: non-scaling-stroke; }
+
+  /* ---------- Pinned / floating panels ---------- */
+  /* Unpinned, the map floats in the top right corner while the page scrolls */
+  .floating { position: fixed; top: 8px; right: 16px; z-index: 5; width: min(340px, calc(100vw - 32px)); border-color: var(--line-strong); }
+  /* The cursor values float as wide as their table, left of the map when that floats too */
+  .floating.readout-panel { width: auto; max-width: calc(100vw - 32px); }
+  .floating.readout-panel.beside-map { right: 370px; max-width: calc(100vw - 402px); }
+  /* The pin and the collapse chevron sit in the same place at the right end of a panel head */
+  .pin, .collapse {
+    display: grid; place-items: center; width: 22px; height: 22px; padding: 0; margin-left: auto; cursor: pointer;
+    background: none; border: 0; color: var(--muted);
+  }
+  .pin svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; transition: transform .15s; }
+  .pin:hover { color: var(--text); }
+  .pin.on { color: var(--accent); }
+  .pin.on svg { fill: currentColor; }
+  .pin:not(.on) svg { transform: rotate(45deg); }
+  .collapse svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+  .collapse:hover { color: var(--text); }
+  /* Collapsed, only the head is left: the chevron points down to say there is more */
+  .collapsed .collapse svg { transform: rotate(180deg); }
+  .collapsed .panel-head { border-bottom: 0; }
+
+  /* ---------- Channels ---------- */
+  /* Shown channels on the left, the ones that can be added on the right; stacked when narrow */
+  .channels { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 24px; }
+  .channels > :first-child { flex: 0 1 320px; min-width: 220px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 6px 8px; flex: 1 1 240px; align-content: flex-start; }
+  .pill {
+    padding: 4px 14px; cursor: pointer; user-select: none; color: var(--text-2); background: var(--raised);
+    border: 1px solid var(--line-strong);
+    font: 600 12px var(--cond); letter-spacing: .1em; text-transform: uppercase;
+    clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+  }
+  .pill:hover { color: var(--text); border-color: var(--muted); }
+  .pill::before { content: "+ "; color: var(--accent); }
+  /* The shown channels, one row per chart in chart order */
+  .channel-list { display: grid; gap: 4px; list-style: none; margin: 0; padding: 0; counter-reset: chart; }
+  .channel-list li {
+    display: flex; align-items: center; gap: 4px; padding: 3px 0 3px 10px; counter-increment: chart;
+    border-left: 3px solid var(--accent); background: var(--raised);
+    font: 600 12px var(--cond); letter-spacing: .1em; text-transform: uppercase; color: var(--text);
+  }
+  .channel-list li::before { content: counter(chart); width: 18px; color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .channel-list span { flex: 1; }
+  .channel-list button {
+    width: 22px; height: 20px; padding: 0; cursor: pointer; background: none; color: var(--muted);
+    border: 1px solid var(--line-strong); font: 600 11px var(--mono); line-height: 1;
+  }
+  .channel-list button:last-child { margin-right: 6px; }
+  .channel-list button:hover:not(:disabled) { color: var(--text); border-color: var(--muted); }
+  .channel-list button:disabled { opacity: .3; cursor: default; }
+  .channels-empty { margin: 4px 0 0; color: var(--muted); font: 500 12px var(--cond); letter-spacing: .06em; text-transform: uppercase; }
+
+  /* ---------- Charts ---------- */
+  .chart { position: relative; border-top: 1px solid var(--line); padding-top: 24px; }
+  .panel-head + .chart { border-top: 0; }
+  .chart-label {
+    position: absolute; left: 12px; top: 6px;
+    font: 700 12px var(--cond); letter-spacing: .14em; text-transform: uppercase; color: var(--text-2);
+  }
+  .chart-label small { color: var(--muted); font-weight: 500; letter-spacing: .06em; margin-left: 6px; }
+  /* Delta / Relative switch on the delta chart */
+  .delta-toggle { position: absolute; right: 12px; top: 3px; display: flex; }
+  .delta-toggle button {
+    padding: 1px 10px; cursor: pointer; background: none; color: var(--muted); border: 1px solid var(--line-strong);
+    font: 700 11px var(--cond); letter-spacing: .12em; text-transform: uppercase;
+  }
+  .delta-toggle button + button { border-left: 0; }
+  .delta-toggle button:hover { color: var(--text); }
+  .delta-toggle button.on { background: var(--text); border-color: var(--text); color: var(--bg); }
+  .u-select { background: #ffc40018; }
+  .u-cursor-x { border-right: 1px solid #e9ecf180 !important; }
+
+  /* ---------- Sidebar ---------- */
+  aside {
+    position: fixed; inset: 0 auto 0 0; z-index: 10; width: min(360px, 100vw); overflow-y: auto;
+    background: #111418; border-right: 1px solid var(--line-strong); box-shadow: 12px 0 40px #000a;
+    transform: translateX(-100%); transition: transform .2s ease;
+  }
+  aside.open { transform: none; }
+  .aside-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .aside-head h2 { margin: 0; font: 700 16px var(--cond); letter-spacing: .14em; text-transform: uppercase; }
+  .aside-body { padding: 12px 14px; display: grid; gap: 12px; }
+  select {
+    width: 100%; height: 36px; padding: 0 10px; color: var(--text); background: var(--raised); border: 1px solid var(--line-strong);
+    font: 600 14px var(--cond); letter-spacing: .06em; text-transform: uppercase;
+  }
+  details { border: 1px solid var(--line); background: var(--panel); }
+  summary {
+    list-style: none; cursor: pointer; padding: 8px 10px; display: flex; gap: 8px; align-items: baseline;
+    font: 700 13px var(--cond); letter-spacing: .1em; text-transform: uppercase;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: "▸"; color: var(--accent); transition: transform .15s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  summary .when { color: var(--muted); font-weight: 500; margin-left: auto; letter-spacing: .04em; white-space: nowrap; }
+  .lap-row {
+    display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 6px 10px; cursor: pointer;
+    border-top: 1px solid var(--line); font: 13px var(--mono);
+  }
+  .lap-row:hover { background: #ffffff06; }
+  .lap-row .slot {
+    height: 20px; display: grid; place-items: center; border: 1px dashed var(--line-strong); color: var(--muted);
+    font: 800 13px var(--cond);
+  }
+  .lap-row.on .slot { border: 0; background: var(--c); color: #0b0d10; clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%); }
+  /* selected laps: raised background with a bar in the lap's colour */
+  .lap-row.on { background: var(--raised); box-shadow: inset 4px 0 0 var(--c); }
+  .lap-row.on .name { color: var(--text); }
+  .lap-row .name { font: 600 13px var(--cond); letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+  .lap-row.invalid .time { color: var(--muted); text-decoration: line-through; }
+  .scrim { position: fixed; inset: 0; background: #0008; z-index: 9; opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .empty { color: var(--muted); padding: 24px; text-align: center; font: 600 14px var(--cond); letter-spacing: .1em; text-transform: uppercase; }
+</style>
+</head>
+<body x-data="app">
+
+<header>
+  <div class="brand"><div class="brand-mark">TT</div><div class="brand-name">Throttle Trace<span>Telemetry</span></div></div>
+  <div class="spacer"></div>
+  <template x-if="sessions.length">
+    <div class="folder" x-text="`${sessions.length} sessions`"></div>
+  </template>
+  <button class="btn" x-show="sessions.length" x-cloak @click="pickFolder">Change folder</button>
+</header>
+<div class="header-line"></div>
+
+<!-- Start screen: pick the telemetry folder -->
+<main x-show="!sessions.length">
+  <section class="panel start">
+    <div class="panel-head">Open telemetry</div>
+    <div class="panel-body">
+      <p>Choose the folder the telemetry mod writes to:</p>
+      <p><code>~/.local/share/godot/app_userdata/Throttle Trace/telemetry</code> (Linux)<br>
+        <code>%APPDATA%\Godot\app_userdata\Throttle Trace\telemetry</code> (Windows)</p>
+      <div class="actions">
+        <button class="btn primary" x-show="savedFolderName" x-cloak @click="reopen" x-text="`Open ${savedFolderName} again`"></button>
+        <button class="btn" :class="!savedFolderName && 'primary'" @click="pickFolder">Choose folder</button>
+      </div>
+      <input type="file" webkitdirectory hidden x-ref="dirInput" @change="loadUpload([...$event.target.files])">
+    </div>
+  </section>
+</main>
+
+<!-- Lap list -->
+<div class="scrim" :class="navOpen && 'open'" @click="navOpen = false"></div>
+<aside :class="navOpen && 'open'" x-show="sessions.length" x-cloak>
+  <div class="aside-head"><h2>Laps</h2><button class="btn" @click="navOpen = false">« Close</button></div>
+  <div class="aside-body">
+    <select x-model="track">
+      <template x-for="t in tracks"><option x-text="t"></option></template>
+    </select>
+    <template x-for="session in trackSessions" :key="session.file">
+      <details open>
+        <summary><span x-text="`${session.type} · ${session.driver}`"></span><span class="when" x-text="session.when"></span></summary>
+        <template x-for="lap in [...session.laps].reverse()" :key="lap.id">
+          <div class="lap-row" :class="{ on: selected.includes(lap.id), invalid: lap.invalid }"
+               :style="{ '--c': lapColor(slotOf(lap)) }" @click="toggleLap(lap)">
+            <span class="slot" x-text="letter(slotOf(lap))"></span>
+            <span class="name" x-text="`Lap ${lap.number}`"></span>
+            <span class="time" :class="lap.time === trackBest && 'best'" x-text="formatTime(lap.time)"></span>
+          </div>
+        </template>
+      </details>
+    </template>
+  </div>
+</aside>
+
+<!-- Analysis -->
+<main x-show="sessions.length" x-cloak>
+  <div class="toolbar">
+    <button class="btn" @click="navOpen = true">☰ Laps</button>
+    <div class="track-name"><span x-text="track"></span></div>
+  </div>
+
+  <section class="panel" x-show="!selectedLaps.length">
+    <div class="empty">Open the lap list and pick laps to compare</div>
+  </section>
+
+  <template x-if="selectedLaps.length">
+    <div class="top">
+      <section class="panel">
+        <div class="panel-head">Lap times</div>
+        <div class="panel-body scroll-x">
+          <table>
+            <thead><tr>
+              <th>Lap</th><th>Driver</th><th>Setup</th><th class="r">Time</th><th class="r">Delta</th>
+              <template x-for="i in sectorCount"><th class="r" x-text="`S${i}`"></th></template>
+              <th></th>
+            </tr></thead>
+            <tbody>
+              <template x-for="row in lapRows" :key="row.lap.id">
+                <tr>
+                  <td><button class="tag" :class="!row.isRef && 'outline'" :style="{ '--c': lapColor(row.n) }" x-text="letter(row.n)" @click="ref = row.lap.id"></button></td>
+                  <td class="driver" x-text="row.lap.driver"></td>
+                  <td x-text="row.lap.setup"></td>
+                  <td class="r" :class="row.best && 'best'" x-text="formatTime(row.lap.time)"></td>
+                  <td class="r" :class="deltaClass(row.delta)" x-text="formatDelta(row.delta)"></td>
+                  <template x-for="sector in row.sectors">
+                    <td class="r sector" :class="sector.best && 'best'" x-text="sector.time?.toFixed(3) ?? ''"></td>
+                  </template>
+                  <td class="remove">
+                    <button class="remove-lap" title="Remove from comparison" @click="toggleLap(row.lap)">
+                      <svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1l-6 6"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="panel" :class="!mapPinned && 'floating'">
+        <div class="panel-head">Track
+          <button class="pin" :class="mapPinned && 'on'" @click="mapPinned = !mapPinned">
+            <svg viewBox="0 0 16 16"><path d="M6 1.5h4l-.5 4.5 2.5 2.5v1H4v-1l2.5-2.5zM8 9.5v5"/></svg>
+          </button>
+        </div>
+        <div class="panel-body">
+          <svg class="map" :view-box.camel="mapBox.join(' ')">
+            <g :class="zoom && 'faded'" x-html="mapLines"></g>
+            <g class="zoomed" x-html="mapZoomed"></g>
+            <g x-html="mapStart"></g>
+            <g x-html="mapDots"></g>
+          </svg>
+        </div>
+      </section>
+    </div>
+  </template>
+
+  <section class="panel" :class="!channelsOpen && 'collapsed'" x-show="selectedLaps.length">
+    <div class="panel-head">Channels
+      <button class="collapse" @click="channelsOpen = !channelsOpen">
+        <svg viewBox="0 0 16 16"><path d="M4 10l4-4 4 4"/></svg>
+      </button>
+    </div>
+    <div class="panel-body channels" x-show="channelsOpen">
+      <div>
+        <ol class="channel-list" x-show="shownChannels.length">
+          <template x-for="(c, i) in shownChannels" :key="c">
+            <li>
+              <span x-text="label(c)"></span>
+              <button title="Move up" :disabled="i === 0" @click="moveChannel(c, -1)">▲</button>
+              <button title="Move down" :disabled="i === shownChannels.length - 1" @click="moveChannel(c, 1)">▼</button>
+              <button title="Hide" @click="toggleChannel(c)">✕</button>
+            </li>
+          </template>
+        </ol>
+        <p class="channels-empty" x-show="!shownChannels.length">No channel charts shown</p>
+      </div>
+      <div class="pills">
+        <template x-for="c in hiddenChannels" :key="c">
+          <button class="pill" @click="toggleChannel(c)" x-text="label(c)"></button>
+        </template>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel readout-panel" :class="{ floating: !readoutPinned, 'beside-map': !readoutPinned && !mapPinned }" x-show="selectedLaps.length">
+    <div class="panel-head">At cursor
+      <button class="pin" :class="readoutPinned && 'on'" @click="readoutPinned = !readoutPinned">
+        <svg viewBox="0 0 16 16"><path d="M6 1.5h4l-.5 4.5 2.5 2.5v1H4v-1l2.5-2.5zM8 9.5v5"/></svg>
+      </button>
+    </div>
+    <div class="panel-body scroll-x">
+      <table class="readout">
+        <thead><tr>
+          <th>Lap</th>
+          <th class="r" x-text="relativeDelta ? 'relative delta' : 'delta'"></th>
+          <template x-for="c in shownChannels"><th class="r" x-text="label(c)"></th></template>
+        </tr></thead>
+        <tbody>
+          <template x-for="row in readout" :key="row.lap.id">
+            <tr>
+              <td><span class="tag" :class="!row.isRef && 'outline'" :style="{ '--c': lapColor(row.n) }" x-text="letter(row.n)"></span></td>
+              <td class="r" :class="deltaClass(row.delta)" x-text="formatDelta(row.delta) || '–'"></td>
+              <template x-for="value in row.values"><td class="r" x-text="value ?? '–'"></td></template>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel" x-show="selectedLaps.length">
+    <div class="panel-head">Telemetry</div>
+    <!-- The delta chart is always first; uPlot draws into this box below the label and the switch -->
+    <div class="chart" x-ref="deltaChart">
+      <div class="chart-label">Delta<small x-text="`to ${letter(refIndex)} · s`"></small></div>
+      <div class="delta-toggle">
+        <button :class="!relativeDelta && 'on'" @click="relativeDelta = false">Delta</button>
+        <button :class="relativeDelta && 'on'" @click="relativeDelta = true">Relative</button>
+      </div>
+    </div>
+    <div x-ref="channelCharts"></div>
+  </section>
+</main>
+
+<script type="module">
+import Alpine from 'https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/+esm';
+import uPlot from 'https://cdn.jsdelivr.net/npm/uplot@1.6.30/+esm';
+import { get, set } from 'https://cdn.jsdelivr.net/npm/idb-keyval@6.2.1/+esm';
+
+// ======================================================================
+// Settings and small helpers
+// ======================================================================
+
+// The values in every sample, in order, for each telemetry data version the mod has written.
+// When the mod's DATA_VERSION goes up, add its list here
+const DATA_VERSIONS = {
+  '0.8': [
+    'time', 'distance_m', 'track_state',
+    'throttle_raw', 'brake_raw', 'throttle_after_sens', 'brake_after_sens', 'throttle', 'brake',
+    'abs_active', 'tc_active',
+    'speed_kph', 'slip_angle_deg', 'wheel_spin', 'traction', 'control', 'grip',
+    'lateral_offset', 'curvature', 'bank', 'x', 'z',
+    'gear', 'rpm', 'ers_battery', 'ers_mode', 'drs',
+    'slip_stream', 'dirty_air',
+  ],
+  '0.9': [
+    'time', 'distance_m', 'track_state',
+    'throttle_raw', 'brake_raw', 'throttle_after_sens', 'brake_after_sens',
+    'throttle_after_damping', 'brake_after_damping', 'throttle', 'brake',
+    'abs_active', 'tc_active',
+    'speed_kph', 'slip_angle_deg', 'wheel_spin', 'traction', 'control', 'grip',
+    'lateral_offset', 'curvature', 'bank', 'x', 'z',
+    'gear', 'rpm', 'ers_battery', 'ers_mode', 'drs',
+    'slip_stream', 'dirty_air',
+  ],
+  '0.10': [
+    'time', 'distance_m',
+    'throttle_raw', 'brake_raw', 'throttle_after_sens', 'brake_after_sens',
+    'throttle_after_damping', 'brake_after_damping', 'throttle', 'brake',
+    'abs_active', 'tc_active',
+    'speed_kph', 'slip_angle_deg', 'wheel_spin', 'traction', 'control', 'grip',
+    'lateral_offset', 'x', 'z',
+    'gear', 'rpm',
+  ],
+};
+// Values that get no chart: time, distance and position are the axes and the map, the rest are text
+const NOT_CHARTED = ['time', 'distance_m', 'x', 'z', 'track_state', 'ers_mode', 'drs'];
+
+// Lap colours in fixed order A, B, C …, checked for colour-blind safety on the dark panel
+const LAP_COLORS = ['#1f9fd0', '#e06a1a', '#c64c9a', '#b3821c', '#5f74f0', '#2a9f86'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const CHART_HEIGHT = 150;
+
+const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const THEME = { muted: cssVar('--muted'), line: cssVar('--line'), mono: cssVar('--mono') };
+
+// Selected laps are named A to Z by lap time, fastest first; -1 (not selected) gives no letter and no colour
+const letter = n => n < 0 ? '' : String.fromCharCode(65 + n); //UTF-16
+const lapColor = n => n < 0 ? undefined : LAP_COLORS[n % LAP_COLORS.length];
+const label = channel => channel.replaceAll('_', ' ');
+
+const formatTime = t => t == null ? 'no time' : `${Math.floor(t / 60)}:${(t % 60).toFixed(3).padStart(6, '0')}`;
+// Seconds with a sign, for every delta on the page
+const formatDelta = d => d == null ? '' : `${d > 0 ? '+' : ''}${d.toFixed(3)}`;
+const deltaClass = d => d > 0 ? 'slower' : d < 0 ? 'faster' : '';
+const fastest = times => Math.min(...times.map(t => t ?? Infinity));
+// Fastest lap first, laps without a time last
+const byTime = (a, b) => (a.time ?? Infinity) - (b.time ?? Infinity);
+
+// View settings kept in the browser between visits
+const SAVED = ['shown', 'mapPinned', 'readoutPinned', 'channelsOpen'];
+const saved = (key, fallback) => JSON.parse(localStorage.getItem(`telemetry.${key}`)) ?? fallback;
+
+// ======================================================================
+// Reading the logs
+// ======================================================================
+
+// One .ttlog file: line 1 is the header, every further complete line is one lap
+async function readSession(file) {
+  const [head, ...lines] = (await file.text()).split('\n').filter(Boolean);
+  const header = JSON.parse(head);
+  const names = DATA_VERSIONS[header.telemetry_version];
+  if (!names) return null;  // a log from a data version this page doesn't know
+  // Where each value is in a sample, by name. Frozen like the points below, so Alpine leaves it alone
+  const columns = Object.freeze(Object.fromEntries(names.map((name, i) => [name, i])));
+
+  const started = new Date(header.started);
+  const laps = [];
+  for (const line of lines) {
+    let lap;
+    try { lap = JSON.parse(line); } catch { continue; }
+    laps.push({
+      id: `${file.name}#${laps.length}`,
+      number: lap.lap,
+      driver: header.driver,
+      time: lap.time,
+      invalid: lap.invalid,
+      sectors: lap.sector_times ?? [],
+      setup: `${lap.front_wing} / ${lap.rear_wing}`,
+      columns,
+      pts: lapPoints(lap.samples, columns),
+    });
+  }
+  return {
+    file: file.name,
+    track: header.track,
+    length: header.track_length_m,
+    type: header.session.replace(/([a-z])([A-Z])/g, '$1 $2'),  // TimeTrial -> Time Trial
+    driver: header.driver,
+    when: isNaN(started) ? '' : `${started.getDate()} ${MONTHS[started.getMonth()]} ${started.toTimeString().slice(0, 5)}`,
+    laps,
+  };
+}
+
+// Distance into the lap, time, map position and sample of every point of a lap. The distance has to keep
+// increasing for uPlot, so samples after a rewind are skipped until the car is past that point again.
+// The result is frozen, which keeps Alpine from wrapping thousands of samples in proxies
+function lapPoints(samples, columns) {
+  const pts = { d: [], t: [], x: [], z: [], rows: [] };
+  for (const row of samples) {
+    const d = row[columns.distance_m];
+    if (pts.d.length && d <= pts.d.at(-1)) continue;
+    pts.d.push(d); pts.t.push(row[columns.time]); pts.x.push(row[columns.x]); pts.z.push(row[columns.z]); pts.rows.push(row);
+  }
+  return Object.freeze(pts);
+}
+
+// ======================================================================
+// Working with laps
+// ======================================================================
+
+// Index of a lap's first point at or past distance d, -1 if the lap doesn't get there
+const indexAt = (lap, d) => lap.pts.d.findIndex(v => v >= d);
+
+// A channel's values over the lap; true/false become 1/0 so they can be drawn
+function channelValues(lap, channel) {
+  const c = lap.columns[channel];
+  return lap.pts.rows.map(row => typeof row[c] === 'boolean' ? +row[c] : row[c] ?? null);
+}
+
+// Time gained (-) or lost (+) against the reference lap at every point of a lap, compared at the same distance
+function deltaTo(ref, lap) {
+  const r = ref.pts, p = lap.pts;
+  let j = 0;
+  return p.d.map((d, i) => {
+    if (d < r.d[0] || d > r.d.at(-1)) return null;
+    while (j < r.d.length - 2 && r.d[j + 1] < d) j++;
+    const f = (d - r.d[j]) / (r.d[j + 1] - r.d[j]);
+    return p.t[i] - (r.t[j] + f * (r.t[j + 1] - r.t[j]));
+  });
+}
+
+// The first value from index start on. The relative delta subtracts it, so every lap starts the window at 0
+const firstFrom = (values, start) => values.find((v, i) => i >= start && v != null) ?? 0;
+
+// Distances where the lap's sectors end (all but the last), for the dashed lines in the charts
+function sectorDistances(lap) {
+  let end = 0;
+  const endTimes = lap.sectors.slice(0, -1).map(sector => end += sector);
+  return endTimes.map(t => lap.pts.d[lap.pts.t.findIndex(time => time >= t)]).filter(d => d != null);
+}
+
+// ======================================================================
+// Charts (uPlot)
+// ======================================================================
+
+// Zooming one chart zooms all of them; the check stops the charts from echoing it back
+function zoomAll(charts, source) {
+  const { min, max } = source.scales.x;
+  for (const c of charts)
+    if (c !== source && (c.scales.x.min !== min || c.scales.x.max !== max)) c.setScale('x', { min, max });
+}
+
+// Dashed sector lines, and on the delta chart a dashed zero line, drawn underneath the laps
+function drawGuides(u, sectors, zeroLine) {
+  const { ctx } = u, { left, top, width, height } = u.bbox;
+  const line = (x1, y1, x2, y2) => { ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); };
+  ctx.save();
+  ctx.strokeStyle = THEME.muted;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 5]);
+  for (const d of sectors) {
+    const x = Math.round(u.valToPos(d, 'x', true)) + 0.5;
+    line(x, top, x, top + height);
+  }
+  const y = Math.round(u.valToPos(0, 'y', true)) + 0.5;
+  if (zeroLine && y > top && y < top + height) {
+    ctx.setLineDash([6, 6]);
+    line(left, y, left + width, y);
+  }
+  ctx.restore();
+}
+
+// ======================================================================
+// The page
+// ======================================================================
+
+Alpine.data('app', () => {
+  // Kept outside Alpine's reactive state: Alpine would wrap these in proxies, and uPlot and the folder handles
+  // don't work through them
+  let charts = [];           // all charts, the delta chart first
+  let deltaChart = null;
+  let deltaData = null;      // the plain deltas, in uPlot's layout [distances, lap A, lap B, …]
+  let deltas = new Map();    // lap id -> deltas to the reference lap, for the readout
+  let refitting = false;     // set while the delta chart's data is swapped, so the zoom isn't passed on
+  let savedFolder = null;    // the folder from last time, from IndexedDB
+
+  return {
+    sessions: [],
+    folderName: '',
+    savedFolderName: '',
+    track: '',
+    selected: [],             // lap ids by lap time, fastest first: A, B, C …
+    ref: null,                // id of the lap pinned as the reference; null for the fastest selected lap
+    shown: saved('shown', ['throttle', 'brake', 'traction', 'control']),   // channel charts below the delta chart, in order
+    relativeDelta: false,     // the delta chart's Delta / Relative switch
+    mapPinned: saved('mapPinned', true),           // false: the track map floats in the top right corner
+    readoutPinned: saved('readoutPinned', true),   // false: the cursor values float left of the map
+    channelsOpen: saved('channelsOpen', true),     // false: the Channels panel is collapsed to its head
+    navOpen: false,
+    cursor: null,             // distance under the mouse in the charts
+    zoom: null,               // [from, to] distance the charts are zoomed to, null for the whole lap
+
+    // Helpers the markup uses
+    letter, lapColor, label, formatTime, formatDelta, deltaClass,
+
+    async init() {
+      this.$watch('track', () => { this.selected = []; this.ref = null; });
+      // Only these keys rebuild the charts; whatever drawing reads besides them doesn't
+      // (Alpine also calls back when the key comes out the same)
+      this.$watch(() => [this.selected.join(), this.shownChannels.join(), this.refLap?.id].join('|'),
+        (key, old) => key !== old && this.drawCharts());
+      this.$watch('relativeDelta', () => this.refitDeltaChart());
+      for (const key of SAVED) this.$watch(key, value => localStorage.setItem(`telemetry.${key}`, JSON.stringify(value)));
+      this.$nextTick(() => new ResizeObserver(() => this.resizeCharts()).observe(this.$refs.deltaChart));
+      // The folder from last time; Chromium reads it again without asking only if the user allowed that on every visit
+      savedFolder = await get('folder').catch(() => null);
+      this.savedFolderName = savedFolder?.name ?? '';
+      if (await savedFolder?.queryPermission() === 'granted') this.readFolder(savedFolder);
+    },
+
+    // ---------- Folder ----------
+
+    // Chromium can read the folder directly; other browsers fall back to a folder upload input
+    async pickFolder() {
+      if (!window.showDirectoryPicker) return this.$refs.dirInput.click();
+      savedFolder = await showDirectoryPicker();
+      set('folder', savedFolder);
+      this.readFolder(savedFolder);
+    },
+
+    async reopen() {
+      if (await savedFolder.requestPermission() === 'granted') this.readFolder(savedFolder);
+    },
+
+    async readFolder(dir) {
+      const files = [];
+      for await (const entry of dir.values())
+        if (entry.kind === 'file') files.push(await entry.getFile());
+      await this.loadFiles(files, dir.name);
+    },
+
+    loadUpload(files) {
+      this.loadFiles(files, files[0]?.webkitRelativePath.split('/')[0] || 'folder');
+    },
+
+    // Reads all logs; a log that can't be read is left out
+    async loadFiles(files, folderName) {
+      const logs = files.filter(f => f.name.endsWith('.ttlog')).sort((a, b) => a.name.localeCompare(b.name));
+      const sessions = await Promise.all(logs.map(file => readSession(file).catch(() => null)));
+      this.sessions = sessions.filter(Boolean);
+      if (folderName !== this.folderName) this.navOpen = true;
+      this.folderName = folderName;
+      // Stay on the track being looked at when the same folder is opened again; otherwise open the one driven last
+      if (!this.tracks.includes(this.track)) this.track = this.sessions.at(-1)?.track ?? '';
+    },
+
+    // ---------- Laps ----------
+
+    get tracks() { return [...new Set(this.sessions.map(s => s.track))].sort(); },
+    // Newest first: the files are read oldest first
+    get trackSessions() { return this.sessions.filter(s => s.track === this.track).reverse(); },
+    get laps() { return this.trackSessions.flatMap(s => s.laps); },
+    get trackBest() { return fastest(this.laps.map(lap => lap.time)); },
+    get selectedLaps() { return this.selected.map(id => this.laps.find(lap => lap.id === id)); },
+    slotOf(lap) { return this.selected.indexOf(lap.id); },
+
+    // The lap whose tag was clicked in the lap table; without one, the fastest selected lap
+    get refLap() {
+      const laps = this.selectedLaps;
+      const best = fastest(laps.map(lap => lap.time));
+      return laps.find(lap => lap.id === this.ref) ?? laps.find(lap => (lap.time ?? Infinity) === best);
+    },
+    get refIndex() { return this.selected.indexOf(this.refLap?.id); },
+
+    toggleLap(lap) {
+      if (this.selected.includes(lap.id)) {
+        this.selected = this.selected.filter(id => id !== lap.id);
+        if (this.ref === lap.id) this.ref = null;
+      } else if (this.selected.length < 26) {
+        this.selected = [...this.selectedLaps, lap].sort(byTime).map(lap => lap.id);
+      }
+    },
+
+    // ---------- Lap times ----------
+
+    get sectorCount() { return Math.max(0, ...this.selectedLaps.map(lap => lap.sectors.length)); },
+
+    // One row per selected lap, with the fastest time and sectors marked
+    get lapRows() {
+      const laps = this.selectedLaps, ref = this.refLap;
+      const bestTime = fastest(laps.map(lap => lap.time));
+      const bestSectors = Array.from({ length: this.sectorCount }, (_, i) => fastest(laps.map(lap => lap.sectors[i])));
+      return laps.map((lap, n) => ({
+        lap, n,
+        isRef: lap.id === ref.id,
+        best: lap.time === bestTime,
+        delta: lap.time == null || ref.time == null ? null : lap.time - ref.time,
+        sectors: bestSectors.map((best, i) => ({ time: lap.sectors[i], best: lap.sectors[i] === best })),
+      }));
+    },
+
+    // ---------- Map, seen from above: x to the right, z down ----------
+
+    // SVG viewBox [left, top, width, height] around all selected laps, with a margin
+    get mapBox() {
+      const xs = this.selectedLaps.flatMap(lap => lap.pts.x), zs = this.selectedLaps.flatMap(lap => lap.pts.z);
+      const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+      const m = Math.max(x1 - x0, z1 - z0) * 0.06;
+      return [x0 - m, z0 - m, x1 - x0 + 2 * m, z1 - z0 + 2 * m];
+    },
+    // 1% of the map, so markers look the same on every track
+    get mapUnit() { return Math.max(this.mapBox[2], this.mapBox[3]) / 100; },
+    get mapLines() { return this.mapPolylines(() => true); },
+    // The stretch the charts are zoomed into, drawn over the faded full lines
+    get mapZoomed() { return this.zoom ? this.mapPolylines(d => d >= this.zoom[0] && d <= this.zoom[1]) : ''; },
+    // Start/finish: a short line across the reference lap's first metres
+    get mapStart() {
+      const { x, z } = this.refLap.pts, dx = x[1] - x[0], dz = z[1] - z[0];
+      const k = this.mapUnit * 3 / (Math.hypot(dx, dz) || 1);
+      return `<line class="start-line" x1="${x[0] - dz * k}" y1="${z[0] + dx * k}" x2="${x[0] + dz * k}" y2="${z[0] - dx * k}"/>`;
+    },
+    // A dot per lap at the distance under the mouse
+    get mapDots() {
+      if (this.cursor == null) return '';
+      return this.selectedLaps.map((lap, n) => {
+        const i = indexAt(lap, this.cursor);
+        return i < 0 ? '' : `<circle cx="${lap.pts.x[i]}" cy="${lap.pts.z[i]}" r="${this.mapUnit * 1.8}" fill="${lapColor(n)}"/>`;
+      }).join('');
+    },
+    mapPolylines(keepDistance) {
+      return this.selectedLaps.map((lap, n) => {
+        const { d, x, z } = lap.pts;
+        const points = x.map((_, i) => keepDistance(d[i]) ? `${x[i]},${z[i]}` : null).filter(Boolean);
+        return `<polyline stroke="${lapColor(n)}" points="${points.join(' ')}"/>`;
+      }).join('');
+    },
+
+    // ---------- Channels ----------
+
+    get channels() {
+      const all = new Set(this.laps.flatMap(lap => Object.keys(lap.columns)));
+      return [...all].filter(c => !NOT_CHARTED.includes(c));
+    },
+    get shownChannels() { return this.shown.filter(c => this.channels.includes(c)); },
+    get hiddenChannels() { return this.channels.filter(c => !this.shown.includes(c)); },
+    // A newly shown channel gets the last chart
+    toggleChannel(c) {
+      this.shown = this.shown.includes(c) ? this.shown.filter(s => s !== c) : [...this.shown, c];
+    },
+    // Swaps channel c's chart with the one above (step -1) or below (step 1)
+    moveChannel(c, step) {
+      const visible = this.shownChannels;
+      const other = visible[visible.indexOf(c) + step];
+      if (!other) return;
+      const shown = [...this.shown], i = shown.indexOf(c), j = shown.indexOf(other);
+      [shown[i], shown[j]] = [shown[j], shown[i]];
+      this.shown = shown;
+    },
+
+    // ---------- Values at the mouse position ----------
+
+    // One row per selected lap: the delta (relative to the window's left edge in relative mode) and the shown channels
+    get readout() {
+      const from = this.zoom?.[0] ?? 0;
+      return this.selectedLaps.map((lap, n) => {
+        const i = this.cursor == null ? -1 : indexAt(lap, this.cursor);
+        const delta = deltas.get(lap.id);
+        let d = i < 0 || !delta ? null : delta[i];
+        if (d != null && this.relativeDelta) d -= firstFrom(delta, indexAt(lap, from));
+        return {
+          lap, n,
+          isRef: lap.id === this.refLap.id,
+          delta: d,
+          values: this.shownChannels.map(c => i < 0 ? null : lap.pts.rows[i][lap.columns[c]]),
+        };
+      });
+    },
+
+    // ---------- Charts: the delta chart, then one per shown channel; each lap a line over the distance ----------
+
+    drawCharts() {
+      const laps = this.selectedLaps, ref = this.refLap, zoom = this.zoom;
+      charts.forEach(c => c.destroy());
+      charts = [];
+      deltaChart = null;
+      this.cursor = null;
+      this.$refs.channelCharts.innerHTML = '';
+      if (!laps.length) return this.zoom = null;
+
+      const sectors = sectorDistances(ref);
+      deltas = new Map(laps.map(lap => [lap.id, deltaTo(ref, lap)]));
+      deltaData = uPlot.join(laps.map(lap => [lap.pts.d, deltas.get(lap.id)]));
+      deltaChart = this.addChart(this.$refs.deltaChart, laps, sectors, true, deltaData);
+
+      for (const channel of this.shownChannels) {
+        const box = document.createElement('div');
+        box.className = 'chart';
+        box.innerHTML = `<div class="chart-label">${label(channel)}</div>`;
+        this.$refs.channelCharts.append(box);
+        this.addChart(box, laps, sectors, false, uPlot.join(laps.map(lap => [lap.pts.d, channelValues(lap, channel)])));
+      }
+
+      // New charts keep the zoom the old ones had
+      if (zoom) deltaChart.setScale('x', { min: zoom[0], max: zoom[1] });
+      else if (this.relativeDelta) this.refitDeltaChart();
+    },
+
+    addChart(box, laps, sectors, isDelta, data) {
+      const chart = new uPlot({
+        width: box.clientWidth,
+        height: CHART_HEIGHT,
+        legend: { show: false },
+        cursor: { sync: { key: 'laps' }, y: false },
+        scales: { x: { time: false } },
+        axes: [
+          { show: false },   // no distances and no vertical grid lines; the sector lines are drawn by drawGuides
+          {
+            size: 60, stroke: THEME.muted, font: `11px ${THEME.mono}`, grid: { stroke: THEME.line, width: 1 }, ticks: { show: false },
+            ...isDelta && { values: (u, ticks) => ticks.map(formatDelta) },
+          },
+        ],
+        series: [{}, ...laps.map((lap, n) => ({ stroke: lapColor(n), width: 1.25, spanGaps: true }))],
+        hooks: {
+          drawClear: [u => drawGuides(u, sectors, isDelta)],
+          setCursor: [u => this.cursor = u.cursor.idx == null ? null : u.data[0][u.cursor.idx]],
+          setScale: [(u, key) => {
+            if (key !== 'x' || refitting) return;
+            zoomAll(charts, u);
+            const { min, max } = u.scales.x, d = u.data[0];
+            this.zoom = min <= d[0] && max >= d.at(-1) ? null : [min, max];
+            if (u === deltaChart && this.relativeDelta) this.refitDeltaChart();
+          }],
+        },
+      }, data, box);
+      charts.push(chart);
+      return chart;
+    },
+
+    // Puts the delta chart's data for the current mode in: relative restarts every lap at 0 at the left edge of the
+    // window. Runs after uPlot has finished the zoom; setData resets the x range, so it's put back, and putting it
+    // back makes uPlot fit the y axis to the visible values
+    refitDeltaChart() {
+      queueMicrotask(() => {
+        if (!deltaChart) return;
+        const { min, max } = deltaChart.scales.x;
+        const start = deltaData[0].findIndex(d => d >= min);
+        const data = !this.relativeDelta ? deltaData : [deltaData[0], ...deltaData.slice(1).map(values => {
+          const offset = firstFrom(values, start);
+          return values.map(v => v == null ? null : v - offset);
+        })];
+        refitting = true;
+        deltaChart.setData(data, false);
+        deltaChart.setScale('x', { min, max });
+        refitting = false;
+      });
+    },
+
+    resizeCharts() {
+      const width = this.$refs.deltaChart.clientWidth;
+      charts.forEach(c => c.setSize({ width, height: CHART_HEIGHT }));
+    },
+  };
+});
+
+Alpine.start();
+</script>
+</body>
+</html>
