@@ -5,7 +5,7 @@ An unofficial mod for [Throttle Trace](https://store.steampowered.com/app/453573
 - **`mods/telemetry/mod.gd`** records your car on every physics step: inputs, speed, slip angle, wheel spin, traction, control, grip, position, gear, rpm and more. Each session becomes one log file in the `telemetry/` folder. Only completed laps are saved, with their lap time, sector times and wing setup.
 - **`mods/telemetry/analysis.html`** reads that folder and shows, per track: a lap table with sector times, a time delta chart against a reference lap, one chart per channel you choose, a track map of the selected laps and the values at the mouse position.
 
-Built for Throttle Trace v0.40.0 (Godot 4.6). Game updates may break it.
+Built for Throttle Trace v0.40.1 (Godot 4.6). Game updates may break it.
 
 ## Install
 
