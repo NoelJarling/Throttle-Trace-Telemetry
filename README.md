@@ -48,7 +48,7 @@ Chrome, Edge and other Chromium browsers remember the folder between visits. Oth
 
 Telemetry is recorded in sessions. Every race or time trial session will create a new session file after the first lap is completed. Restarting a session will not write a new session file. Session files can be shared with others. Drop session files from other people into your `telemetry/` folder to compare.
 
-Only completed laps will be recorded. Resetting during time trial will discard all data recorded for that lap. Rewinding during a race will cause data to be recorded twice but the analysis page will not show the rewinded data.
+Only completed laps will be recorded. Resetting during time trial will discard all data recorded for that lap.
 
 ### Throttle and brake channels
 

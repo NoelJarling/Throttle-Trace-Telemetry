@@ -535,7 +535,7 @@ async function readSession(file) {
 }
 
 // Distance into the lap, time, map position and sample of every point of a lap. The distance has to keep
-// increasing for uPlot, so samples after a rewind are skipped until the car is past that point again.
+// increasing for uPlot, so samples that are not further along than the last one (car standing still or going backwards) are skipped.
 // The result is frozen, which keeps Alpine from wrapping thousands of samples in proxies
 function lapPoints(samples, columns) {
   const pts = { d: [], t: [], x: [], z: [], rows: [] };

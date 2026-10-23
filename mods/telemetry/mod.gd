@@ -8,7 +8,7 @@ extends Node
 ## Only completed laps are saved: a lap's samples are kept in memory and written together with its result
 ## once the lap counter moves on to the next lap.
 ##
-## Rewinds and all analysis are handled in analysis.html (next to this file). The log is flushed after
+## All analysis is done in analysis.html (next to this file). The log is flushed after
 ## every lap line, so a lap shows up in the page once it's done and the folder is read again.
 
 const RECORD_ROOT := "user://telemetry"
