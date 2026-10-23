@@ -341,7 +341,7 @@
                     <td class="r sector" :class="sector.best && 'best'" x-text="sector.time?.toFixed(3) ?? ''"></td>
                   </template>
                   <td class="remove">
-                    <button class="remove-lap" title="Remove from comparison" @click="toggleLap(row.lap)">
+                    <button class="remove-lap" @click="toggleLap(row.lap)">
                       <svg viewBox="0 0 8 8"><path d="M1 1l6 6M7 1l-6 6"/></svg>
                     </button>
                   </td>
@@ -381,9 +381,9 @@
           <template x-for="(c, i) in shownChannels" :key="c">
             <li>
               <span x-text="label(c)"></span>
-              <button title="Move up" :disabled="i === 0" @click="moveChannel(c, -1)">▲</button>
-              <button title="Move down" :disabled="i === shownChannels.length - 1" @click="moveChannel(c, 1)">▼</button>
-              <button title="Hide" @click="toggleChannel(c)">✕</button>
+              <button :disabled="i === 0" @click="moveChannel(c, -1)">▲</button>
+              <button :disabled="i === shownChannels.length - 1" @click="moveChannel(c, 1)">▼</button>
+              <button @click="toggleChannel(c)">✕</button>
             </li>
           </template>
         </ol>
