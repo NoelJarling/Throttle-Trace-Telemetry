@@ -9,7 +9,7 @@ extends Node
 ## once the lap counter moves on to the next lap.
 ##
 ## Rewinds and all analysis are handled in analysis.html (next to this file). The log is flushed after
-## every lap line; the page re-reads the folder every few seconds, so a lap shows up there once it's done.
+## every lap line, so a lap shows up in the page once it's done and the folder is read again.
 
 const RECORD_ROOT := "user://telemetry"
 const DATA_VERSION := "1.0"
@@ -141,8 +141,8 @@ func _sample(car: Car) -> Array:
 		_num(Track.pixels_to_meters(car.lap_progress), 0.01),  # distance_m, into the lap
 		roundi(_driver_input("accelerate", 1.0) * 100),  # throttle_raw
 		roundi(_driver_input("brake", 1.0) * 100),  # brake_raw
-		roundi(_driver_input("accelerate", Options.throttle_input_exponent) * 100) ,  # throttle_after_sens
-		roundi(_driver_input("brake", Options.brake_input_exponent) * 100),  # brake_after_sens
+		roundi(_driver_input("accelerate", Options.throttle_input_exponent) * 100) ,  # throttle_after_sensitivity
+		roundi(_driver_input("brake", Options.brake_input_exponent) * 100),  # brake_after_sensitivity
 		roundi(car.player_controller._driver_throttle * 100),  # throttle_after_damping
 		roundi(car.player_controller._driver_brake * 100),  # brake_after_damping
 		roundi(car.inputs.throttle * 100),  # throttle
