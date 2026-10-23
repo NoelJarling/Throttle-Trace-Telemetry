@@ -554,10 +554,10 @@ function lapPoints(samples, columns) {
 // Index of a lap's first point at or past distance d, -1 if the lap doesn't get there
 const indexAt = (lap, d) => lap.pts.d.findIndex(v => v >= d);
 
-// A channel's values over the lap; true/false become 1/0 so they can be drawn
+// A channel's values over the lap
 function channelValues(lap, channel) {
   const c = lap.columns[channel];
-  return lap.pts.rows.map(row => typeof row[c] === 'boolean' ? +row[c] : row[c] ?? null);
+  return lap.pts.rows.map(row => row[c] ?? null);
 }
 
 // Time gained (-) or lost (+) against the reference lap at every point of a lap, compared at the same distance

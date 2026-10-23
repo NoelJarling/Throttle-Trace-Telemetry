@@ -147,8 +147,8 @@ func _sample(car: Car) -> Array:
 		roundi(car.player_controller._driver_brake * 100),  # brake_after_damping
 		roundi(car.inputs.throttle * 100),  # throttle
 		roundi(car.inputs.brake * 100),  # brake
-		car.anti_lock_brakes.is_engaged,  # abs_active
-		car.traction_control.is_engaged,  # tc_active
+		int(car.anti_lock_brakes.is_engaged),  # abs_active
+		int(car.traction_control.is_engaged),  # tc_active
 		roundi(Track.pps_to_kph(car.speed)),  # speed_kph
 		_num(rad_to_deg(car.slip_angle), 0.01),  # slip_angle_deg
 		roundi(car.wheel_spin * 100),  # wheel_spin
