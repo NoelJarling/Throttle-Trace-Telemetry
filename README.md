@@ -40,6 +40,7 @@ Throttle Trace/            (user data folder)
 2. Open `mods/telemetry/analysis.html` in your browser and click **Choose folder**. Pick the `telemetry/` folder in the user data folder.
 3. Pick a track, then select laps in the sidebar. The fastest selected lap is lap A and the reference for the delta; click a lap's tag in the table to use another lap as the reference.
 4. Drag across a chart to zoom into part of the lap, double-click to zoom out.
+5. The map and cursor panels can be unpinned to float at the top of the page making it easier to read and compare values from the charts
 
 The page reads the folder once. To see laps driven since then, click **Change folder** or reload the page.
 
@@ -51,11 +52,11 @@ Only completed laps will be recorded. Resetting during time trial will discard a
 
 ### Throttle and brake channels
 
-Throttle and brake have multiple channels. The following examples are based on the throttle input but brake input works the same:
+Throttle and brake have multiple channels. The following examples are based on the throttle input but brake input works the same.
+
+Each channel takes more configuration options from the settings menu into account.
 
 `throttle raw → throttle after sens → throttle after damping → throttle`
-
-These channels take configuration options from the settings menu into account.
 
 | Channel                | Value                                                                                                   |
 |------------------------|---------------------------------------------------------------------------------------------------------|
