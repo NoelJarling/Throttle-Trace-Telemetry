@@ -45,17 +45,11 @@
 
   /* ---------- Header ---------- */
   header {
-    display: flex; align-items: center; gap: 16px; padding: 0 16px 0 0; height: 52px;
+    /* same left and right edges as main: 16px padding inside a centred 1600px column */
+    display: flex; align-items: center; gap: 16px; padding: 0 max(16px, calc((100% - 1600px) / 2 + 16px)); height: 52px;
     background: linear-gradient(180deg, #171a20, #111317);
   }
-  .brand { display: flex; align-items: center; height: 100%; }
-  .brand-mark {
-    height: 100%; padding: 0 22px 0 16px; display: grid; place-items: center;
-    background: var(--accent); color: var(--accent-ink);
-    clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
-    font: 800 22px/1 var(--cond); letter-spacing: -.02em;
-  }
-  .brand-name { padding-left: 10px; font: 700 18px/1 var(--cond); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
+  .brand-name { font: 700 18px/1 var(--cond); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; }
   .brand-name span { color: var(--muted); font-weight: 600; margin-left: 8px; }
   header .spacer { flex: 1; }
   .folder { display: flex; align-items: center; gap: 8px; color: var(--text-2); font: 500 13px var(--cond); letter-spacing: .06em; text-transform: uppercase; }
@@ -76,7 +70,7 @@
   .top { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 14px; }
   @media (max-width: 900px) { .top { grid-template-columns: 1fr; } }
   .toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .track-name { font: 700 22px var(--cond); letter-spacing: .06em; text-transform: uppercase; }
+  .track-name { font: 600 16px var(--cond); letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); }
 
   .panel {
     background: var(--panel); border: 1px solid var(--line); min-width: 0;
@@ -140,8 +134,8 @@
   /* ---------- Map ---------- */
   .map { display: block; width: 100%; max-height: 320px; }
   .map polyline { fill: none; stroke-width: 1.5; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
-  .map .faded polyline { opacity: .35; }
-  .map .zoomed polyline { stroke-width: 3; }
+  .map polyline.faded { opacity: .35; }
+  .map polyline.zoomed { stroke-width: 3; }
   .map .start-line { stroke: var(--text); stroke-width: 2; vector-effect: non-scaling-stroke; }
 
   /* ---------- Pinned / floating panels ---------- */
@@ -263,7 +257,7 @@
 <body x-data="app">
 
 <header>
-  <div class="brand"><div class="brand-mark">TTT</div><div class="brand-name">Throttle Trace<span>Telemetry</span></div></div>
+  <div class="brand-name">Throttle Trace<span>Telemetry</span></div>
   <div class="spacer"></div>
   <template x-if="sessions.length">
     <div class="folder" x-text="`${sessions.length} sessions`"></div>
@@ -364,11 +358,11 @@
           </button>
         </div>
         <div class="panel-body">
-          <svg class="map" :view-box.camel="mapBox.join(' ')">
-            <g :class="zoom && 'faded'" x-html="mapLines"></g>
-            <g class="zoomed" x-html="mapZoomed"></g>
-            <g x-html="mapStart"></g>
-            <g x-html="mapDots"></g>
+          <svg class="map" :view-box.camel="map.box">
+            <polyline :class="zoom && 'faded'" :points="map.points" :stroke="lapColor(refIndex)"/>
+            <polyline class="zoomed" x-show="zoom" :points="mapZoomed" :stroke="lapColor(refIndex)"/>
+            <line class="start-line" :x1="map.start.x1" :y1="map.start.y1" :x2="map.start.x2" :y2="map.start.y2"/>
+            <circle x-show="mapDot" :cx="mapDot?.x" :cy="mapDot?.y" :r="map.unit * 1.8" :fill="lapColor(refIndex)"/>
           </svg>
         </div>
       </section>
@@ -551,6 +545,24 @@ function lapPoints(samples, columns) {
 // Working with laps
 // ======================================================================
 
+// A lap's map, seen from above (x to the right, z down): the SVG viewBox around the lap with a margin, 1% of the map
+// as the size of markers (so they look the same on every track), the line and the start/finish tick across its first metres
+function lapMap(lap) {
+  const { x, z } = lap.pts;
+  const [x0, x1, z0, z1] = [Math.min(...x), Math.max(...x), Math.min(...z), Math.max(...z)];
+  const m = Math.max(x1 - x0, z1 - z0) * 0.06;
+  const box = [x0 - m, z0 - m, x1 - x0 + 2 * m, z1 - z0 + 2 * m];
+  const unit = Math.max(box[2], box[3]) / 100;
+  const dx = x[1] - x[0], dz = z[1] - z[0], k = unit * 3 / (Math.hypot(dx, dz) || 1);
+  return {
+    id: lap.id,
+    box: box.join(' '),
+    unit,
+    points: x.map((xi, i) => `${xi},${z[i]}`).join(' '),
+    start: { x1: x[0] - dz * k, y1: z[0] + dx * k, x2: x[0] + dz * k, y2: z[0] - dx * k },
+  };
+}
+
 // Index of a lap's first point at or past distance d, -1 if the lap doesn't get there
 const indexAt = (lap, d) => lap.pts.d.findIndex(v => v >= d);
 
@@ -626,6 +638,7 @@ Alpine.data('app', () => {
   let deltas = new Map();    // lap id -> deltas to the reference lap, for the readout
   let refitting = false;     // set while the delta chart's data is swapped, so the zoom isn't passed on
   let savedFolder = null;    // the folder from last time, from IndexedDB
+  let refMap = null;         // lapMap of the reference lap, kept until the reference lap changes
 
   return {
     sessions: [],
@@ -742,40 +755,22 @@ Alpine.data('app', () => {
       }));
     },
 
-    // ---------- Map, seen from above: x to the right, z down ----------
+    // ---------- Map: only the reference lap ----------
 
-    // SVG viewBox [left, top, width, height] around all selected laps, with a margin
-    get mapBox() {
-      const xs = this.selectedLaps.flatMap(lap => lap.pts.x), zs = this.selectedLaps.flatMap(lap => lap.pts.z);
-      const [x0, x1, z0, z1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
-      const m = Math.max(x1 - x0, z1 - z0) * 0.06;
-      return [x0 - m, z0 - m, x1 - x0 + 2 * m, z1 - z0 + 2 * m];
+    get map() {
+      if (refMap?.id !== this.refLap.id) refMap = lapMap(this.refLap);
+      return refMap;
     },
-    // 1% of the map, so markers look the same on every track
-    get mapUnit() { return Math.max(this.mapBox[2], this.mapBox[3]) / 100; },
-    get mapLines() { return this.mapPolylines(() => true); },
-    // The stretch the charts are zoomed into, drawn over the faded full lines
-    get mapZoomed() { return this.zoom ? this.mapPolylines(d => d >= this.zoom[0] && d <= this.zoom[1]) : ''; },
-    // Start/finish: a short line across the reference lap's first metres
-    get mapStart() {
-      const { x, z } = this.refLap.pts, dx = x[1] - x[0], dz = z[1] - z[0];
-      const k = this.mapUnit * 3 / (Math.hypot(dx, dz) || 1);
-      return `<line class="start-line" x1="${x[0] - dz * k}" y1="${z[0] + dx * k}" x2="${x[0] + dz * k}" y2="${z[0] - dx * k}"/>`;
+    // The points of the stretch the charts are zoomed into, drawn over the faded full line
+    get mapZoomed() {
+      if (!this.zoom) return '';
+      const { d, x, z } = this.refLap.pts, [from, to] = this.zoom;
+      return x.map((_, i) => d[i] >= from && d[i] <= to ? `${x[i]},${z[i]}` : null).filter(Boolean).join(' ');
     },
-    // A dot per lap at the distance under the mouse
-    get mapDots() {
-      if (this.cursor == null) return '';
-      return this.selectedLaps.map((lap, n) => {
-        const i = indexAt(lap, this.cursor);
-        return i < 0 ? '' : `<circle cx="${lap.pts.x[i]}" cy="${lap.pts.z[i]}" r="${this.mapUnit * 1.8}" fill="${lapColor(n)}"/>`;
-      }).join('');
-    },
-    mapPolylines(keepDistance) {
-      return this.selectedLaps.map((lap, n) => {
-        const { d, x, z } = lap.pts;
-        const points = x.map((_, i) => keepDistance(d[i]) ? `${x[i]},${z[i]}` : null).filter(Boolean);
-        return `<polyline stroke="${lapColor(n)}" points="${points.join(' ')}"/>`;
-      }).join('');
+    // Where the reference lap is at the distance under the mouse
+    get mapDot() {
+      const i = this.cursor == null ? -1 : indexAt(this.refLap, this.cursor);
+      return i < 0 ? null : { x: this.refLap.pts.x[i], y: this.refLap.pts.z[i] };
     },
 
     // ---------- Channels ----------
