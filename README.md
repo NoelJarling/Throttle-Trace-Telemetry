@@ -46,12 +46,6 @@ The page reads the folder once. To see laps driven since then, click **Change fo
 
 Chrome, Edge and other Chromium browsers remember the folder between visits. Other browsers ask for it every time. The page needs an internet connection to load its libraries.
 
-The page loads these libraries from [jsDelivr](https://www.jsdelivr.com/) and its fonts from Google Fonts:
-
-- [Alpine.js](https://alpinejs.dev/) for the page's interactivity
-- [uPlot](https://github.com/leeoniya/uPlot) for the charts
-- [idb-keyval](https://github.com/jakearchibald/idb-keyval) to remember the telemetry folder between visits
-
 Telemetry is recorded in sessions. Every race or time trial session will create a new session file after the first lap is completed. Restarting a session will not write a new session file. Session files can be shared with others. Drop session files from other people into your `telemetry/` folder to compare.
 
 Only completed laps will be recorded. Resetting during time trial will discard all data recorded for that lap.
@@ -74,3 +68,11 @@ Each channel takes more configuration options from the settings menu into accoun
 ## Uninstall
 
 Delete `mods/telemetry/` from the user data folder. Your logs stay in `telemetry/` until you delete that folder too.
+
+## Libraries
+
+The page loads these libraries from [jsDelivr](https://www.jsdelivr.com/) and its fonts from Google Fonts:
+
+- [Alpine.js](https://alpinejs.dev/) for the page's interactivity
+- [uPlot](https://github.com/leeoniya/uPlot) for the charts
+- [idb-keyval](https://github.com/jakearchibald/idb-keyval) to remember the telemetry folder between visits
