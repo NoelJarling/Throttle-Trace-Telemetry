@@ -46,12 +46,14 @@ The page reads the folder once. To see laps driven since then, click **Change fo
 Chrome, Edge and other Chromium browsers remember the folder between visits. Other browsers ask for it every time. The page needs an internet connection to load its libraries.
 
 Telemetry is recorded in sessions. Every race or time trial session will create a new session file after the first lap is completed. Restarting a session will not write a new session file. Session files can be shared with others. Drop session files from other people into your `telemetry/` folder to compare.
+
 Only completed laps will be recorded. Resetting during time trial will discard all data recorded for that lap. Rewinding during a race will cause data to be recorded twice but the analysis page will not show the rewinded data.
 
 ### Throttle and brake channels
 
 Throttle and brake have multiple channels. The following examples are based on the throttle input but brake input works the same:
-Throttle raw -> throttle after sens -> throttle after damping -> throttle
+
+`throttle raw → throttle after sens → throttle after damping → throttle`
 
 These channels take configuration options from the settings menu into account.
 
