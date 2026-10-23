@@ -455,28 +455,9 @@ import { get, set } from 'https://cdn.jsdelivr.net/npm/idb-keyval@6.2.1/+esm';
 // The values in every sample, in order, for each telemetry data version the mod has written.
 // When the mod's DATA_VERSION goes up, add its list here
 const DATA_VERSIONS = {
-  '0.8': [
-    'time', 'distance_m', 'track_state',
-    'throttle_raw', 'brake_raw', 'throttle_after_sens', 'brake_after_sens', 'throttle', 'brake',
-    'abs_active', 'tc_active',
-    'speed_kph', 'slip_angle_deg', 'wheel_spin', 'traction', 'control', 'grip',
-    'lateral_offset', 'curvature', 'bank', 'x', 'z',
-    'gear', 'rpm', 'ers_battery', 'ers_mode', 'drs',
-    'slip_stream', 'dirty_air',
-  ],
-  '0.9': [
-    'time', 'distance_m', 'track_state',
-    'throttle_raw', 'brake_raw', 'throttle_after_sens', 'brake_after_sens',
-    'throttle_after_damping', 'brake_after_damping', 'throttle', 'brake',
-    'abs_active', 'tc_active',
-    'speed_kph', 'slip_angle_deg', 'wheel_spin', 'traction', 'control', 'grip',
-    'lateral_offset', 'curvature', 'bank', 'x', 'z',
-    'gear', 'rpm', 'ers_battery', 'ers_mode', 'drs',
-    'slip_stream', 'dirty_air',
-  ],
-  '0.10': [
+  '1.0': [
     'time', 'distance_m',
-    'throttle_raw', 'brake_raw', 'throttle_after_sens', 'brake_after_sens',
+    'throttle_raw', 'brake_raw', 'throttle_after_sensitivity', 'brake_after_sensitivity',
     'throttle_after_damping', 'brake_after_damping', 'throttle', 'brake',
     'abs_active', 'tc_active',
     'speed_kph', 'slip_angle_deg', 'wheel_spin', 'traction', 'control', 'grip',
@@ -484,8 +465,8 @@ const DATA_VERSIONS = {
     'gear', 'rpm',
   ],
 };
-// Values that get no chart: time, distance and position are the axes and the map, the rest are text
-const NOT_CHARTED = ['time', 'distance_m', 'x', 'z', 'track_state', 'ers_mode', 'drs'];
+// Values that get no chart: time, distance and position are the axes and the map
+const NOT_CHARTED = ['time', 'distance_m', 'x', 'z'];
 
 // Lap colours in fixed order A, B, C …, checked for colour-blind safety on the dark panel
 const LAP_COLORS = ['#1f9fd0', '#e06a1a', '#c64c9a', '#b3821c', '#5f74f0', '#2a9f86'];

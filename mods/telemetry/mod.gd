@@ -12,7 +12,7 @@ extends Node
 ## every lap line; the page re-reads the folder every few seconds, so a lap shows up there once it's done.
 
 const RECORD_ROOT := "user://telemetry"
-const DATA_VERSION := "0.10"
+const DATA_VERSION := "1.0"
 var _track: Track
 var _file: FileAccess
 var _samples: Array[Array] = []  # samples of the lap in progress
