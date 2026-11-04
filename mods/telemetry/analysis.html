@@ -272,8 +272,7 @@
     <div class="panel-head">Open telemetry</div>
     <div class="panel-body">
       <p>Choose the folder the telemetry mod writes to:</p>
-      <p><code>~/.local/share/godot/app_userdata/Throttle Trace/telemetry</code> (Linux)<br>
-        <code>%APPDATA%\Godot\app_userdata\Throttle Trace\telemetry</code> (Windows)</p>
+      <p><code>Documents/Throttle Trace/telemetry</code></p>
       <div class="actions">
         <button class="btn primary" x-show="savedFolderName" x-cloak @click="reopen" x-text="`Open ${savedFolderName} again`"></button>
         <button class="btn" :class="!savedFolderName && 'primary'" @click="pickFolder">Choose folder</button>

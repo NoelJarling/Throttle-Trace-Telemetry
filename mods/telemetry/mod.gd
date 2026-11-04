@@ -1,6 +1,6 @@
 extends Node
 ## Telemetry recorder: writes every physics step of the player's car to one log per session,
-## user://telemetry/<date>_<track>_<session>_<driver>.ttlog. Line 1 is a JSON header (session info, start time and
+## Documents/Throttle Trace/telemetry/<date>_<track>_<session>_<driver>.ttlog. Line 1 is a JSON header (session info, start time and
 ## the telemetry data version), then one JSON object per lap and line:
 ##   {"lap":2,"time":19.089,"invalid":false,"front_wing":50,"rear_wing":50,"sector_times":[...],"samples":[[...],...]}
 ## Samples are arrays of the values _sample returns. Which value is which is defined by the data version;
@@ -8,10 +8,11 @@ extends Node
 ## Only completed laps are saved: a lap's samples are kept in memory and written together with its result
 ## once the lap counter moves on to the next lap.
 ##
-## All analysis is done in analysis.html (next to this file). The log is flushed after
+## All analysis is done in analysis.html (next to this file). The logs are outside user:// because Chrome
+## refuses to open folders under ~/.local/share. The log is flushed after
 ## every lap line, so a lap shows up in the page once it's done and the folder is read again.
 
-const RECORD_ROOT := "user://telemetry"
+var RECORD_ROOT := OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS).path_join("Throttle Trace/telemetry")
 const DATA_VERSION := "1.0"
 var _track: Track
 var _file: FileAccess
@@ -21,7 +22,7 @@ var _recording := false
 
 func _ready() -> void:
 	#Create the telemetry folder
-	DirAccess.make_dir_absolute(RECORD_ROOT)
+	DirAccess.make_dir_recursive_absolute(RECORD_ROOT)
 
 	#Connect to the node_added signal
 	get_tree().node_added.connect(_on_node_added)
