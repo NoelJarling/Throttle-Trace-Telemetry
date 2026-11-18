@@ -12,12 +12,19 @@ extends Node
 ## refuses to open folders under ~/.local/share. The log is flushed after
 ## every lap line, so a lap shows up in the page once it's done and the folder is read again.
 
-var RECORD_ROOT := OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS).path_join("Throttle Trace/telemetry")
-const DATA_VERSION := "1.0"
+# Inside the Steam Linux Runtime container the documents dir lookup returns "", which made the path
+# relative (logs landed in the game's install folder), so fall back to ~/Documents
+var RECORD_ROOT := _documents_dir().path_join("Throttle Trace/telemetry")
+const DATA_VERSION := "1.1"
 var _track: Track
 var _file: FileAccess
 var _samples: Array[Array] = []  # samples of the lap in progress
 var _recording := false
+
+
+static func _documents_dir() -> String:
+	var dir := OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
+	return dir if dir.is_absolute_path() else OS.get_environment("HOME").path_join("Documents")
 
 
 func _ready() -> void:
@@ -152,7 +159,6 @@ func _sample(car: Car) -> Array:
 		_num(rad_to_deg(car.slip_angle), 0.01),  # slip_angle_deg
 		roundi(car.wheel_spin * 100),  # wheel_spin
 		roundi(car.traction * 100),  # grip
-		roundi(car.control * 100),  # control
 		_num(car.grip * 100, 0.01),  # tire_grip
 		_num(car.relative_offset, 0.01),  # lateral_offset
 		_num(pos.x, 0.00001),  # x
